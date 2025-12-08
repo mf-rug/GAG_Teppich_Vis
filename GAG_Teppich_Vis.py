@@ -166,7 +166,7 @@ def build_interactive_plot(year_details: Dict[int, List[Dict[str, str]]], output
         x_axis_label="Year",
         y_axis_label="Mentions",
         tools="tap",
-        sizing_mode="stretch_width",
+        width=900,
         height=500,
     )
     p.vbar(x="x", top="y", width=40, source=source, line_color="white", fill_color="#80b1d3")
