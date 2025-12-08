@@ -149,7 +149,8 @@ def build_interactive_plot(year_details: Dict[int, List[Dict[str, str]]], output
     agg_counts = []
     agg_html = []
 
-    for year in sorted(year_details.keys()):
+    sorted_years = sorted(year_details.keys())
+    for year in sorted_years:
         items = year_details[year]
         agg_years.append(year)
         agg_counts.append(len(items))
@@ -161,6 +162,12 @@ def build_interactive_plot(year_details: Dict[int, List[Dict[str, str]]], output
 
     source = ColumnDataSource(data=dict(x=agg_years, y=agg_counts, info=agg_html))
 
+    if len(sorted_years) > 1:
+        min_gap = min(b - a for a, b in zip(sorted_years, sorted_years[1:]))
+        bar_width = max(0.5, min(40, min_gap * 0.8))
+    else:
+        bar_width = 30
+
     p = figure(
         title="Mentions of Years in Episode Topics",
         x_axis_label="Year",
@@ -169,7 +176,7 @@ def build_interactive_plot(year_details: Dict[int, List[Dict[str, str]]], output
         width=900,
         height=500,
     )
-    p.vbar(x="x", top="y", width=40, source=source, line_color="white", fill_color="#80b1d3")
+    p.vbar(x="x", top="y", width=bar_width, source=source, line_color="white", fill_color="#80b1d3")
 
     info_panel = Div(text="<b>Click a bar to see topics and episodes</b>", width=350)
     source.selected.js_on_change(
@@ -271,11 +278,12 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             print("  No paragraph found; moving on")
             continue
         years = extract_years(paragraph)
-        if years:
-            print(f"  Extracted years: {years}")
+        unique_years = sorted(set(years))
+        if unique_years:
+            print(f"  Extracted years (deduped): {unique_years}")
         else:
             print("  No years detected in paragraph")
-        for year in years:
+        for year in unique_years:
             for episode in link.episodes:
                 all_years[year] += 1
                 year_details[year].append({"term": link.term, "url": link.url, "episode": episode})
