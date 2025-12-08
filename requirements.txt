@@ -2,3 +2,4 @@ beautifulsoup4
 matplotlib
 pandas
 requests
+bokeh
