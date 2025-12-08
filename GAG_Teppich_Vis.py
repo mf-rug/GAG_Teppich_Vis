@@ -40,9 +40,11 @@ class Fetcher:
 
 
 def concat_episode_tables(html: str) -> pd.DataFrame:
+    print("Parsing episode tables from HTML ...")
     tables = pd.read_html(html)
     if not tables:
         raise ValueError("No tables found on episode page")
+    print(f"Found {len(tables)} tables; concatenating into a single DataFrame")
     return pd.concat(tables, ignore_index=True)
 
 
@@ -69,20 +71,24 @@ def extract_thema_links(html: str) -> List[str]:
             anchor = thema_cell.find("a", href=True)
             if anchor and anchor["href"].startswith("/wiki") and not anchor["href"].startswith("/wiki/Wikipedia:"):
                 links.append(WIKI_BASE + anchor["href"])
+    print(f"Collected {len(links)} raw topic links from all tables")
     return links
 
 
 def find_first_paragraph_text(fetcher: Fetcher, url: str) -> Optional[str]:
+    print(f"  Fetching article: {url}")
     html = fetcher.fetch_html(url)
     soup = BeautifulSoup(html, "html.parser")
     content = soup.select_one("#mw-content-text .mw-parser-output")
     if not content:
+        print("  Skipping: no content section found")
         return None
 
     for paragraph in content.find_all("p", recursive=False):
         text = paragraph.get_text(strip=True)
         if text:
             return text
+    print("  Skipping: no non-empty lead paragraph")
     return None
 
 
@@ -141,6 +147,7 @@ def unique(iterable: Iterable[str]) -> List[str]:
         if value not in seen:
             seen.add(value)
             items.append(value)
+    print(f"Reduced to {len(items)} unique links after de-duplication")
     return items
 
 
@@ -158,6 +165,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     args = parse_args(argv)
     fetcher = Fetcher.create()
 
+    print(f"Fetching episode list page: {EPISODE_URL}")
     html = fetcher.fetch_html(EPISODE_URL)
     episodes_df = concat_episode_tables(html)
     print(f"Loaded {len(episodes_df)} episode rows")
@@ -166,11 +174,17 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     print(f"Found {len(links)} unique linked topics")
 
     all_years: Counter[int] = Counter()
-    for link in links:
+    for idx, link in enumerate(links, start=1):
+        print(f"Processing link {idx}/{len(links)}")
         paragraph = find_first_paragraph_text(fetcher, link)
         if not paragraph:
+            print("  No paragraph found; moving on")
             continue
         years = extract_years(paragraph)
+        if years:
+            print(f"  Extracted years: {years}")
+        else:
+            print("  No years detected in paragraph")
         all_years.update(years)
 
     print(f"Extracted {sum(all_years.values())} year mentions across {len(all_years)} distinct years")
